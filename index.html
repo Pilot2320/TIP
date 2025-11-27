@@ -162,7 +162,6 @@
     </div>
 </div>
 <script>
-    // Password generation logic
     const pwForm = document.getElementById('pw-form');
     const lengthCtrl = document.getElementById('length-ctrl');
     const upperCtrl = document.getElementById('uppercase-ctrl');
@@ -183,7 +182,6 @@
         if (sets.symbol) allChars += '!@#$%&*';
         if (!allChars) return '';
         let pwd = '';
-        // Guarantee each selected type appears at least once
         let requiredChars = [];
         if (sets.upper) requiredChars.push(randChar('ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
         if (sets.lower) requiredChars.push(randChar('abcdefghijklmnopqrstuvwxyz'));
@@ -192,7 +190,6 @@
         for (let i = 0; i < length - requiredChars.length; ++i)
             pwd += randChar(allChars);
         pwd += requiredChars.join('');
-        // Shuffle password
         return shuffle(pwd.split('')).join('');
     }
     function randChar(chars) {
@@ -212,10 +209,8 @@
         if (sets.digit) score += 10;
         if (sets.symbol) score += 12;
         score += password.length * 2;
-        // Extra: variety bonus if more than two sets used
         if ([sets.upper, sets.lower, sets.digit, sets.symbol].filter(Boolean).length > 2)
             score += 10;
-        // Heuristic grading
         if (score < 35) return { fill: 33, label: "Слабый пароль" };
         if (score < 54) return { fill: 60, label: "Средний пароль" };
         if (score < 70) return { fill: 80, label: "Хороший пароль" };
@@ -258,7 +253,6 @@
         copyBtn.textContent = "✔";
         setTimeout(() => copyBtn.textContent = "📋", 950);
     });
-    // Initial output
     pwOutput.textContent = '';
     showOutput('', {upper:true, lower:true, digit:true, symbol:false});
 </script>
