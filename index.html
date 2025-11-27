@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Паролей</title>
+    <style>
+        :root {
+            --color-bg-primary: var(--color-cream-50, #fcfcf9);
+            --color-surface: var(--color-cream-100, #fffdfd);
+            --color-text-primary: var(--color-slate-900, #13343b);
+            --color-primary: var(--color-teal-500, #21808d);
+            --color-primary-hover: var(--color-teal-600, #1d7480);
+            --color-error: var(--color-red-500, #c0152f);
+        }
+        html, body {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+        }
+        .container {
+            max-width: 440px;
+            margin: 40px auto;
+            background: var(--color-surface);
+            border-radius: 10px;
+            box-shadow: 0 4px 24px rgba(19,52,59,0.08);
+            padding: 28px 24px;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .options {
+            margin-bottom: 14px;
+        }
+        .options label {
+            font-weight: 400;
+            margin-right: 16px;
+            cursor: pointer;
+        }
+        input[type="number"] {
+            width: 64px;
+            padding: 6px;
+            font-size: 1rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            margin-top: 8px;
+            cursor: pointer;
+            transition: background .18s;
+        }
+        .btn:hover, .btn:active {
+            background: var(--color-primary-hover);
+        }
+        .password-box {
+            margin: 18px 0 10px 0;
+            display: flex;
+        }
+        .password-output {
+            font-family: 'Berkeley Mono', 'Courier New', monospace;
+            font-size: 1.25rem;
+            padding: 10px;
+            flex: 1;
+            background: #f3f3ef;
+            border-radius: 7px;
+            border: 1px solid #eee;
+            word-break: break-all;
+        }
+        .copy-btn {
+            margin-left: 10px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 7px;
+            padding: 0 16px;
+            font-size: 1.15rem;
+            cursor: pointer;
+            transition: background .18s;
+            height: 40px;
+        }
+        .copy-btn:active {
+            background: var(--color-primary-hover);
+        }
+        .strength-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #eee;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .strength-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--color-primary);
+            transition: width .18s;
+        }
+        .strength-label {
+            font-size: 0.96rem;
+            font-weight: 500;
+            margin-bottom: 9px;
+            color: var(--color-primary);
+        }
+        .error {
+            color: var(--color-error);
+            margin-bottom: 11px;
+            font-size: 0.97rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Генератор Паролей</h1>
+    <form id="pw-form" autocomplete="off">
+        <div class="options">
+            <label>
+                Длина пароля:
+                <input type="number" id="length-ctrl" min="6" max="32" value="12" required>
+            </label>
+        </div>
+        <div class="options">
+            <label>
+                <input type="checkbox" id="uppercase-ctrl" checked>
+                прописные буквы (A-Z)
+            </label>
+            <label>
+                <input type="checkbox" id="lowercase-ctrl" checked>
+                строчные буквы (a-z)
+            </label>
+            <label>
+                <input type="checkbox" id="digits-ctrl" checked>
+                цифры (0-9)
+            </label>
+            <label>
+                <input type="checkbox" id="symbols-ctrl">
+                символы (!@#$%&amp;*)
+            </label>
+        </div>
+        <button type="submit" class="btn">Сгенерировать пароль</button>
+    </form>
+    <div class="error" id="error-box"></div>
+    <div class="password-box">
+        <div class="password-output" id="pw-output"></div>
+        <button class="copy-btn" id="copy-btn" title="Скопировать">📋</button>
+    </div>
+    <div class="strength-label" id="strength-label"></div>
+    <div class="strength-bar">
+        <div class="strength-fill" id="strength-fill" style="width:0%"></div>
+    </div>
+</div>
+<script>
+    // Password generation logic
+    const pwForm = document.getElementById('pw-form');
+    const lengthCtrl = document.getElementById('length-ctrl');
+    const upperCtrl = document.getElementById('uppercase-ctrl');
+    const lowerCtrl = document.getElementById('lowercase-ctrl');
+    const digitCtrl = document.getElementById('digits-ctrl');
+    const symbolCtrl = document.getElementById('symbols-ctrl');
+    const pwOutput = document.getElementById('pw-output');
+    const errorBox = document.getElementById('error-box');
+    const copyBtn = document.getElementById('copy-btn');
+    const strengthLabel = document.getElementById('strength-label');
+    const strengthFill = document.getElementById('strength-fill');
+
+    function genPassword(length, sets) {
+        let allChars = '';
+        if (sets.upper) allChars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        if (sets.lower) allChars += 'abcdefghijklmnopqrstuvwxyz';
+        if (sets.digit) allChars += '0123456789';
+        if (sets.symbol) allChars += '!@#$%&*';
+        if (!allChars) return '';
+        let pwd = '';
+        // Guarantee each selected type appears at least once
+        let requiredChars = [];
+        if (sets.upper) requiredChars.push(randChar('ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+        if (sets.lower) requiredChars.push(randChar('abcdefghijklmnopqrstuvwxyz'));
+        if (sets.digit) requiredChars.push(randChar('0123456789'));
+        if (sets.symbol) requiredChars.push(randChar('!@#$%&*'));
+        for (let i = 0; i < length - requiredChars.length; ++i)
+            pwd += randChar(allChars);
+        pwd += requiredChars.join('');
+        // Shuffle password
+        return shuffle(pwd.split('')).join('');
+    }
+    function randChar(chars) {
+        return chars[Math.floor(Math.random() * chars.length)];
+    }
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+    function estimateStrength(password, sets) {
+        let score = 0;
+        if (sets.upper) score += 10;
+        if (sets.lower) score += 10;
+        if (sets.digit) score += 10;
+        if (sets.symbol) score += 12;
+        score += password.length * 2;
+        // Extra: variety bonus if more than two sets used
+        if ([sets.upper, sets.lower, sets.digit, sets.symbol].filter(Boolean).length > 2)
+            score += 10;
+        // Heuristic grading
+        if (score < 35) return { fill: 33, label: "Слабый пароль" };
+        if (score < 54) return { fill: 60, label: "Средний пароль" };
+        if (score < 70) return { fill: 80, label: "Хороший пароль" };
+        return { fill: 100, label: "Надёжный пароль" };
+    }
+    function showOutput(password, sets) {
+        pwOutput.textContent = password;
+        let est = estimateStrength(password, sets);
+        strengthFill.style.width = est.fill + '%';
+        strengthLabel.textContent = password ? est.label : '';
+    }
+    pwForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        errorBox.textContent = '';
+        let len = parseInt(lengthCtrl.value, 10);
+        if (isNaN(len) || len < 6 || len > 32) {
+            errorBox.textContent = "Длина пароля должна быть от 6 до 32 символов.";
+            showOutput('', {upper:upperCtrl.checked, lower:lowerCtrl.checked, digit:digitCtrl.checked, symbol:symbolCtrl.checked});
+            return;
+        }
+        let sets = {
+            upper: upperCtrl.checked,
+            lower: lowerCtrl.checked,
+            digit: digitCtrl.checked,
+            symbol: symbolCtrl.checked
+        };
+        if (!sets.upper && !sets.lower && !sets.digit && !sets.symbol) {
+            errorBox.textContent = "Выберите хотя бы одну группу символов.";
+            showOutput('', sets);
+            return;
+        }
+        let password = genPassword(len, sets);
+        pwOutput.textContent = password;
+        showOutput(password, sets);
+    });
+    copyBtn.addEventListener('click', function() {
+        let value = pwOutput.textContent;
+        if (!value) return;
+        navigator.clipboard.writeText(value);
+        copyBtn.textContent = "✔";
+        setTimeout(() => copyBtn.textContent = "📋", 950);
+    });
+    // Initial output
+    pwOutput.textContent = '';
+    showOutput('', {upper:true, lower:true, digit:true, symbol:false});
+</script>
+</body>
+</html>
