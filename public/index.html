@@ -187,6 +187,36 @@
     const strengthLabel = document.getElementById('strength-label');
     const strengthFill = document.getElementById('strength-fill');
 
+    function genPassword(length, sets) {
+        let allChars = '';
+        if (sets.upper) allChars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        if (sets.lower) allChars += 'abcdefghijklmnopqrstuvwxyz';
+        if (sets.digit) allChars += '0123456789';
+        if (sets.symbol) allChars += '!@#$%&*';
+        if (!allChars) return '';
+        let pwd = '';
+        // Guarantee each selected type appears at least once
+        let requiredChars = [];
+        if (sets.upper) requiredChars.push(randChar('ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+        if (sets.lower) requiredChars.push(randChar('abcdefghijklmnopqrstuvwxyz'));
+        if (sets.digit) requiredChars.push(randChar('0123456789'));
+        if (sets.symbol) requiredChars.push(randChar('!@#$%&*'));
+        for (let i = 0; i < length - requiredChars.length; ++i)
+            pwd += randChar(allChars);
+        pwd += requiredChars.join('');
+        // Shuffle password
+        return shuffle(pwd.split('')).join('');
+    }
+    function randChar(chars) {
+        return chars[Math.floor(Math.random() * chars.length)];
+    }
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
     function estimateStrength(password, sets) {
         let score = 0;
         if (sets.upper) score += 10;
@@ -276,7 +306,7 @@
         copyBtn.textContent = "✔";
         setTimeout(() => copyBtn.textContent = "📋", 950);
     });
-
+    // Initial output
     pwOutput.textContent = '';
     showOutput('', {upper:true, lower:true, digit:true, symbol:false});
 </script>
