@@ -79,6 +79,9 @@
             border-radius: 7px;
             border: 1px solid #eee;
             word-break: break-all;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
         }
         .copy-btn {
             margin-left: 10px;
@@ -91,6 +94,9 @@
             cursor: pointer;
             transition: background .18s;
             height: 40px;
+        }
+        .copy-btn:hover {
+            background: var(--color-primary-hover);
         }
         .copy-btn:active {
             background: var(--color-primary-hover);
@@ -113,11 +119,17 @@
             font-weight: 500;
             margin-bottom: 9px;
             color: var(--color-primary);
+            min-height: 1.2em;
         }
         .error {
             color: var(--color-error);
             margin-bottom: 11px;
             font-size: 0.97rem;
+            min-height: 1.4em;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -154,15 +166,15 @@
     <div class="error" id="error-box"></div>
     <div class="password-box">
         <div class="password-output" id="pw-output"></div>
-        <button class="copy-btn" id="copy-btn" title="Скопировать">📋</button>
+        <button type="button" class="copy-btn" id="copy-btn" title="Скопировать">📋</button>
     </div>
     <div class="strength-label" id="strength-label"></div>
     <div class="strength-bar">
         <div class="strength-fill" id="strength-fill" style="width:0%"></div>
     </div>
 </div>
+
 <script>
-    // Password generation logic
     const pwForm = document.getElementById('pw-form');
     const lengthCtrl = document.getElementById('length-ctrl');
     const upperCtrl = document.getElementById('uppercase-ctrl');
@@ -175,36 +187,6 @@
     const strengthLabel = document.getElementById('strength-label');
     const strengthFill = document.getElementById('strength-fill');
 
-    function genPassword(length, sets) {
-        let allChars = '';
-        if (sets.upper) allChars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        if (sets.lower) allChars += 'abcdefghijklmnopqrstuvwxyz';
-        if (sets.digit) allChars += '0123456789';
-        if (sets.symbol) allChars += '!@#$%&*';
-        if (!allChars) return '';
-        let pwd = '';
-        // Guarantee each selected type appears at least once
-        let requiredChars = [];
-        if (sets.upper) requiredChars.push(randChar('ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
-        if (sets.lower) requiredChars.push(randChar('abcdefghijklmnopqrstuvwxyz'));
-        if (sets.digit) requiredChars.push(randChar('0123456789'));
-        if (sets.symbol) requiredChars.push(randChar('!@#$%&*'));
-        for (let i = 0; i < length - requiredChars.length; ++i)
-            pwd += randChar(allChars);
-        pwd += requiredChars.join('');
-        // Shuffle password
-        return shuffle(pwd.split('')).join('');
-    }
-    function randChar(chars) {
-        return chars[Math.floor(Math.random() * chars.length)];
-    }
-    function shuffle(arr) {
-        for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        return arr;
-    }
     function estimateStrength(password, sets) {
         let score = 0;
         if (sets.upper) score += 10;
@@ -212,45 +194,81 @@
         if (sets.digit) score += 10;
         if (sets.symbol) score += 12;
         score += password.length * 2;
-        // Extra: variety bonus if more than two sets used
         if ([sets.upper, sets.lower, sets.digit, sets.symbol].filter(Boolean).length > 2)
             score += 10;
-        // Heuristic grading
         if (score < 35) return { fill: 33, label: "Слабый пароль" };
         if (score < 54) return { fill: 60, label: "Средний пароль" };
         if (score < 70) return { fill: 80, label: "Хороший пароль" };
         return { fill: 100, label: "Надёжный пароль" };
     }
+
     function showOutput(password, sets) {
         pwOutput.textContent = password;
         let est = estimateStrength(password, sets);
         strengthFill.style.width = est.fill + '%';
         strengthLabel.textContent = password ? est.label : '';
     }
-    pwForm.addEventListener('submit', function(e) {
+
+    async function fetchPassword(length, options) {
+        try {
+            pwForm.classList.add('loading');
+            errorBox.textContent = '';
+            
+            const params = new URLSearchParams({
+                length: length,
+                uppercase: options.upper,
+                lowercase: options.lower,
+                digits: options.digit,
+                symbols: options.symbol
+            });
+
+            const response = await fetch(`/api/password?${params}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                errorBox.textContent = data.error || 'Ошибка при генерации пароля';
+                return null;
+            }
+
+            return data;
+        } catch (err) {
+            errorBox.textContent = 'Ошибка сервера: ' + err.message;
+            return null;
+        } finally {
+            pwForm.classList.remove('loading');
+        }
+    }
+
+    pwForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         errorBox.textContent = '';
+
         let len = parseInt(lengthCtrl.value, 10);
         if (isNaN(len) || len < 6 || len > 32) {
             errorBox.textContent = "Длина пароля должна быть от 6 до 32 символов.";
             showOutput('', {upper:upperCtrl.checked, lower:lowerCtrl.checked, digit:digitCtrl.checked, symbol:symbolCtrl.checked});
             return;
         }
+
         let sets = {
             upper: upperCtrl.checked,
             lower: lowerCtrl.checked,
             digit: digitCtrl.checked,
             symbol: symbolCtrl.checked
         };
+
         if (!sets.upper && !sets.lower && !sets.digit && !sets.symbol) {
             errorBox.textContent = "Выберите хотя бы одну группу символов.";
             showOutput('', sets);
             return;
         }
-        let password = genPassword(len, sets);
-        pwOutput.textContent = password;
-        showOutput(password, sets);
+
+        const result = await fetchPassword(len, sets);
+        if (result) {
+            showOutput(result.password, sets);
+        }
     });
+
     copyBtn.addEventListener('click', function() {
         let value = pwOutput.textContent;
         if (!value) return;
@@ -258,7 +276,7 @@
         copyBtn.textContent = "✔";
         setTimeout(() => copyBtn.textContent = "📋", 950);
     });
-    // Initial output
+
     pwOutput.textContent = '';
     showOutput('', {upper:true, lower:true, digit:true, symbol:false});
 </script>
